@@ -1,0 +1,67 @@
+#include <vector>
+#include <iostream>
+
+// Step 1: Set up the TChain and add the files
+TChain chain("treeSC");
+chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485090_v1.root");
+chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485950_v1.root");
+chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485051_v1.root");
+
+// Step 2: Define energy bins for calculating resolution
+const int nBins = 10; // Number of energy bins
+double energyBins[nBins + 1] = {50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550}; // Adjust as needed
+
+// Vectors to store energy values and corresponding resolutions
+std::vector<double> energyMidpoints;
+std::vector<double> resolutions;
+std::vector<double> errors; // Vector to store error values
+
+// Step 3: Loop over energy bins, fit the time distribution, and extract the resolution
+for (int i = 0; i < nBins; ++i) {
+    // Define the current energy range
+    double energyMin = energyBins[i];
+    double energyMax = energyBins[i + 1];
+    double energyMidpoint = 0.5 * (energyMin + energyMax);
+    
+    // Draw the time distribution for the current energy range
+    TString drawCmd = Form("ev_of_ettau/ev_of_et >> h_time(50, 0, 10)");
+    TString cutCmd = Form("ev_et > %f && ev_et < %f", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5); // Convert GeV to original units
+    chain.Draw(drawCmd, cutCmd, "goff");
+    
+    // Get the histogram
+    TH1F *h_time = (TH1F*)gDirectory->Get("h_time");
+    if (!h_time) {
+        std::cerr << "Histogram not found for energy range: " << energyMin << " - " << energyMax << std::endl;
+        continue;
+    }
+    
+    // Step 4: Fit the histogram with a Gaussian function
+    h_time->Fit("gaus", "Q"); // "Q" option suppresses fit output
+    
+    // Get the fit function and extract the resolution (sigma)
+    TF1 *fitFunction = h_time->GetFunction("gaus");
+    if (fitFunction) {
+        double sigma = fitFunction->GetParameter(2);
+        resolutions.push_back(sigma);
+        energyMidpoints.push_back(energyMidpoint);
+        
+        // Assuming error is the uncertainty on the fit parameter (this can be adjusted)
+        double error = fitFunction->GetParError(2); // Get the error on sigma
+        errors.push_back(error);
+    } else {
+        std::cerr << "Fit failed for energy range: " << energyMin << " - " << energyMax << std::endl;
+    }
+}
+
+// Step 5: Create the resolution vs. energy plot
+TGraphErrors *graph = new TGraphErrors(energyMidpoints.size(), &energyMidpoints[0], &resolutions[0], nullptr, &errors[0]);
+graph->SetTitle("Resolution vs. Energy; Energy (GeV); Time Resolution (ns)"); // Changed units to ns
+graph->SetMarkerStyle(20);
+graph->SetMarkerColor(kBlue);
+
+// Step 6: Draw the graph on a canvas
+TCanvas *c1 = new TCanvas("c1", "Resolution vs. Energy", 800, 600);
+graph->Draw("AP"); // "AP" draws points with error bars
+
+// Update the canvas
+c1->Update();
