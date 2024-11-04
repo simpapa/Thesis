@@ -6,6 +6,7 @@
 #include <TF1.h>
 #include <TCanvas.h>
 #include <TString.h>
+#include <cmath> // For cosh function
 
 // Step 1: Set up the TChain and add the files
 TChain chain("treeSC");
@@ -34,7 +35,8 @@ for (int i = 0; i < nBins; ++i) {
     
     // Draw the time distribution for the current energy range with -25 ns to 25 ns range and 200 bins
     TString drawCmd = Form("ev_of_ettau/ev_of_et >> h_time_%d(200, -25, 25)", i); // 200 bins for finer granularity
-    TString cutCmd = Form("ev_et > %f && ev_et < %f", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5); // Convert GeV to original units
+    // Use E = ev_of_et * cosh(sc_eta) in the energy cut
+    TString cutCmd = Form("ev_of_et * cosh(sc_eta) > %f && ev_of_et * cosh(sc_eta) < %f", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5);
     chain.Draw(drawCmd, cutCmd, "goff");
     
     // Get the histogram
