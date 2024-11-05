@@ -6,7 +6,7 @@
 #include <TF1.h>
 #include <TCanvas.h>
 #include <TString.h>
-#include <cmath> // For cosh function
+#include <TStyle.h>
 
 // Step 1: Set up the TChain and add the files
 TChain chain("treeSC");
@@ -15,97 +15,80 @@ chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485950_v1.root");
 chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485051_v1.root");
 
 // Step 2: Define energy bins for calculating resolution
-const int nBins = 12; // Number of energy bins
-double energyBins[nBins + 1] = {5, 10, 15, 20, 25, 30, 35, 40, 50, 100, 200, 300, 500}; // Updated energy bins
+const int nBins = 12;
+double energyBins[nBins + 1] = {5, 10, 15, 20, 25, 30, 35, 40, 50, 100, 200, 300, 500};
 
 // Vectors to store energy values and corresponding resolutions
 std::vector<double> energyMidpoints;
 std::vector<double> resolutions;
-std::vector<double> errors; // Vector to store error values
+std::vector<double> errors;
+
+// Set fit option to display probability, chi-square/ndf, parameter names/values, and errors
+gStyle->SetOptFit(1111);
 
 // Step 3: Loop over energy bins, fit the time distribution, and extract the resolution
 for (int i = 0; i < nBins; ++i) {
-    // Define the current energy range
     double energyMin = energyBins[i];
     double energyMax = energyBins[i + 1];
     double energyMidpoint = 0.5 * (energyMin + energyMax);
-    
-    // Create a new canvas for each energy bin to visualize individual fits
+
     TCanvas *cBin = new TCanvas(Form("cBin_%d", i), Form("Energy Bin %d: %.1f - %.1f GeV", i, energyMin, energyMax), 800, 600);
     
-    // Draw the time distribution for the current energy range with -25 ns to 25 ns range and 200 bins
-    TString drawCmd = Form("ev_of_ettau/ev_of_et >> h_time_%d(200, -25, 25)", i); // 200 bins for finer granularity
-    // Use E = ev_of_et * cosh(sc_eta) in the energy cut
-    TString cutCmd = Form("ev_of_et * cosh(sc_eta) > %f && ev_of_et * cosh(sc_eta) < %f", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5);
+    TString drawCmd = Form("ev_of_ettau/ev_of_et >> h_time_%d(200, -25, 25)", i);
+    TString cutCmd = Form("ev_et > %f && ev_et < %f", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5);
     chain.Draw(drawCmd, cutCmd, "goff");
-    
-    // Get the histogram
+
     TH1F *h_time = (TH1F*)gDirectory->Get(Form("h_time_%d", i));
     if (!h_time) {
         std::cerr << "Histogram not found for energy range: " << energyMin << " - " << energyMax << std::endl;
         continue;
     }
     
-    // Perform a preliminary Gaussian fit to get initial estimates for mean and sigma
-    h_time->Fit("gaus", "Q0"); // "Q0" fits quietly but doesn't draw the fit
+    h_time->Fit("gaus", "Q0");
     TF1 *preFitFunction = h_time->GetFunction("gaus");
-    
+
     if (preFitFunction) {
         double mean = preFitFunction->GetParameter(1);
         double sigma = preFitFunction->GetParameter(2);
         
-        // Step 4: Refine the Gaussian fit within 2 sigma of the mean
         h_time->Fit("gaus", "Q", "", mean - 2 * sigma, mean + 2 * sigma);
-        
-        // Draw the histogram and refined fit on the canvas
         h_time->SetTitle(Form("Time Distribution for Energy %.1f - %.1f GeV; Time (ns); Counts", energyMin, energyMax));
         h_time->Draw();
         cBin->Update();
-        
-        // Extract final fit parameters
+
         TF1 *fitFunction = h_time->GetFunction("gaus");
         if (fitFunction) {
             double finalSigma = fitFunction->GetParameter(2);
             resolutions.push_back(finalSigma);
             energyMidpoints.push_back(energyMidpoint);
-            
-            // Get the error on sigma
             double error = fitFunction->GetParError(2);
             errors.push_back(error);
-        } else {
-            std::cerr << "Refined fit failed for energy range: " << energyMin << " - " << energyMax << std::endl;
         }
-    } else {
-        std::cerr << "Initial fit failed for energy range: " << energyMin << " - " << energyMax << std::endl;
     }
 }
 
 // Step 5: Create the resolution vs. energy plot
 TGraphErrors *graph = new TGraphErrors(energyMidpoints.size(), &energyMidpoints[0], &resolutions[0], nullptr, &errors[0]);
-graph->SetTitle("Resolution vs. Energy; Energy (GeV); Time Resolution (ns)"); // Changed units to ns
+graph->SetTitle("Resolution vs. Energy; Energy (GeV); Time Resolution (ns)");
 graph->SetMarkerStyle(20);
 graph->SetMarkerColor(kBlue);
 
 // Step 6: Define the custom fit function
-TF1 *fitCustom = new TF1("fitCustom", "[0]/x + [1]", 5, 600); // a/E + b, with a and b as parameters
-fitCustom->SetParameter(0, 1); // Initial guess for a
-fitCustom->SetParameter(1, 1); // Initial guess for b
+TF1 *fitCustom = new TF1("fitCustom", "[0]/x + [1]", 5, 600);
+fitCustom->SetParameter(0, 1);
+fitCustom->SetParameter(1, 1);
 
 // Step 7: Fit the graph to the custom function
-graph->Fit(fitCustom, "R"); // "R" to restrict fit range
+graph->Fit(fitCustom, "R");
 
 // Retrieve the parameters a and b from the fit
 double a = fitCustom->GetParameter(0); // Parameter a
 double b = fitCustom->GetParameter(1); // Parameter b
 
-// Retrieve the errors on the parameters (optional)
-double aError = fitCustom->GetParError(0); // Error on parameter a
-double bError = fitCustom->GetParError(1); // Error on parameter b
-
 // Print the parameters and their errors
 std::cout << "Fit Parameters:" << std::endl;
-std::cout << "a = " << a << " ± " << aError << std::endl;
-std::cout << "b = " << b << " ± " << bError << std::endl;
+std::cout << "a = " << a << " ± " << fitCustom->GetParError(0) << std::endl;
+std::cout << "b = " << b << " ± " << fitCustom->GetParError(1) << std::endl;
 
 // Step 8: Draw the graph and the custom fit function on a canvas
 TCanvas *c1 = new TCanvas("c1", "Resolution vs. Energy", 800, 600);
@@ -115,3 +98,4 @@ fitCustom->Draw("same"); // Draw the fit on the same canvas
 
 // Update the main canvas
 c1->Update();
+
