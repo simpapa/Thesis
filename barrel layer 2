@@ -7,6 +7,7 @@
 #include <TCanvas.h>
 #include <TString.h>
 #include <TStyle.h>
+#include <TLatex.h>  // Include TLatex for text rendering
 
 TChain chain("treeSC");
 chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485090_v1.root");
@@ -85,5 +86,10 @@ graph->Draw("AP");
 fitCustom->SetLineColor(kRed);
 fitCustom->Draw("same");
 
-c1->Update();
+// Add TLatex with the equation centered
+TLatex lat;
+lat.SetTextSize(0.04);  // Set the font size for the equation
+lat.SetTextAlign(22);  // Align text to the center (both horizontally and vertically)
+lat.DrawLatexNDC(0.5, 0.5, " #sigma_{t}(E)=#sqrt{ #frac{a^{2}}{E^{2}} + b^{2}}");
 
+c1->Update();
