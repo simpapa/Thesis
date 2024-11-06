@@ -7,7 +7,6 @@
 #include <TCanvas.h>
 #include <TString.h>
 #include <TStyle.h>
-#include <TLatex.h>  // Include TLatex for text rendering
 
 TChain chain("treeSC");
 chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485090_v1.root");
@@ -28,15 +27,15 @@ for (int i = 0; i < nBins; ++i) {
     double energyMax = energyBins[i + 1];
     double energyMidpoint = 0.5 * (energyMin + energyMax);
 
-    TCanvas *cBin = new TCanvas(Form("cBin_%d", i), Form("Energy Bin %d: %.1f - %.1f GeV", i, energyMin, energyMax), 800, 600);
+    TCanvas *cBin = new TCanvas(Form("cBin_%d", i), Form("Energy Bin %d: [%.1f, %.1f] GeV", i, energyMin, energyMax), 800, 600);
     
     TString drawCmd = Form("ev_of_ettau/ev_of_et >> h_time_%d(200, -25, 25)", i);
-    TString cutCmd = Form("ev_et > %f && ev_et < %f && sc_layer == 2", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5); // Added sc_layer == 2
+    TString cutCmd = Form("ev_et > %f && ev_et < %f && sc_layer == 2 && sc_det == 0", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5);
     chain.Draw(drawCmd, cutCmd, "goff");
 
     TH1F *h_time = (TH1F*)gDirectory->Get(Form("h_time_%d", i));
     if (!h_time) {
-        std::cerr << "Histogram not found for energy range: " << energyMin << " - " << energyMax << std::endl;
+        std::cerr << "Histogram not found for energy range: [" << energyMin << ", " << energyMax << "] GeV" << std::endl;
         continue;
     }
 
@@ -48,7 +47,7 @@ for (int i = 0; i < nBins; ++i) {
         double sigma = preFitFunction->GetParameter(2);
         
         h_time->Fit("gaus", "Q", "", mean - sigma, mean + sigma);
-        h_time->SetTitle(Form("Time Distribution for Energy %.1f - %.1f GeV; Time (ns); Counts", energyMin, energyMax));
+        h_time->SetTitle(Form("Time Distribution for Energy [%.1f, %.1f] GeV; Time [ns]; Counts", energyMin, energyMax));
         h_time->Draw();
         cBin->Update();
 
@@ -64,9 +63,9 @@ for (int i = 0; i < nBins; ++i) {
 }
 
 TGraphErrors *graph = new TGraphErrors(energyMidpoints.size(), &energyMidpoints[0], &resolutions[0], nullptr, &errors[0]);
-graph->SetTitle("Resolution vs. Energy (Barrel Layer 2); Energy (GeV); Time Resolution (ns)");
+graph->SetTitle("Resolution vs. Energy [Barrel Layer 2, sc_det == 0]; Energy [GeV]; Time Resolution [ns]");
 graph->SetMarkerStyle(20);
-graph->SetMarkerColor(kBlack); // Set points color to black
+graph->SetMarkerColor(kBlack);
 
 TF1 *fitCustom = new TF1("fitCustom", "[0]/x + [1]", 5, 600);
 fitCustom->SetParameter(0, 1);
@@ -83,14 +82,8 @@ std::cout << "b = " << b << " ± " << fitCustom->GetParError(1) << std::endl;
 
 TCanvas *c1 = new TCanvas("c1", "Resolution vs. Energy", 800, 600);
 graph->Draw("AP");
-fitCustom->SetLineColor(kRed); // Set the fit line color to red
+fitCustom->SetLineColor(kRed);
 fitCustom->Draw("same");
 
-// Add the TLatex label with the formula
-TLatex lat(0.5, 0.85, " #sigma_{t}(E)=#sqrt{ #frac{a^{2}}{E^{2}} + b^{2}}");
-lat.SetTextSize(0.05);  // Adjust font size
-lat.SetTextColor(kBlack);  // Set text color to black
-lat.SetNDC();  // Use normalized device coordinates
-lat.Draw();
-
 c1->Update();
+
