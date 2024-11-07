@@ -74,6 +74,9 @@ graph->SetTitle("Resolution vs. Energy [Barrel Layer 0, sc_det == 0]; Energy [Ge
 graph->SetMarkerStyle(20);
 graph->SetMarkerColor(kBlack);
 
+// Set y-axis limits
+graph->GetYaxis()->SetRangeUser(0, 4);  // Limit y-axis from 0 to 4 ns
+
 // Fit the data to the custom function
 TF1 *fitCustom = new TF1("fitCustom", "[0]/x + [1]", 5, 600);
 fitCustom->SetParameter(0, 1);
