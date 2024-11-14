@@ -1,1 +1,78 @@
+#include <vector>
+#include <iostream>
+#include <TChain.h>
+#include <TH1F.h>
+#include <TGraphErrors.h>
+#include <TF1.h>
+#include <TCanvas.h>
+#include <TString.h>
+#include <TStyle.h>
+#include <TLatex.h> // Include TLatex for text rendering
+
+TChain chain("treeSC");
+chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485090_v1.root");
+chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485950_v1.root");
+chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485051_v1.root");
+
+const int nBins = 12;
+double energyBins[nBins + 1] = {5, 10, 15, 20, 25, 30, 35, 40, 50, 100, 200, 300, 500};
+
+for (int det = 0; det <= 3; ++det) {
+    for (int layer = 0; layer <= 3; ++layer) {
+        std::vector<double> energyMidpoints;
+        std::vector<double> means;
+        std::vector<double> meanErrors;
+
+        gStyle->SetOptFit(1111);
+
+        for (int i = 0; i < nBins; ++i) {
+            double energyMin = energyBins[i];
+            double energyMax = energyBins[i + 1];
+            double energyMidpoint = 0.5 * (energyMin + energyMax);
+
+            TCanvas *cBin = new TCanvas(Form("cBin_%d_%d_%d", det, layer, i), Form("Energy Bin %d: [%.1f, %.1f] GeV, Det %d, Layer %d", i, energyMin, energyMax, det, layer), 800, 600);
+            
+            TString drawCmd = Form("ev_of_ettau/ev_of_et >> h_time_%d_%d_%d(200, -25, 25)", det, layer, i);
+            TString cutCmd = Form("ev_et > %f && ev_et < %f && sc_layer == %d && sc_det == %d", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5, layer, det);
+            chain.Draw(drawCmd, cutCmd, "goff");
+
+            TH1F *h_time = (TH1F*)gDirectory->Get(Form("h_time_%d_%d_%d", det, layer, i));
+            if (!h_time) {
+                std::cerr << "Histogram not found for energy range: [" << energyMin << ", " << energyMax << "] GeV, Det " << det << ", Layer " << layer << std::endl;
+                continue;
+            }
+
+            h_time->Fit("gaus", "Q0");
+            TF1 *preFitFunction = h_time->GetFunction("gaus");
+
+            if (preFitFunction) {
+                double mean = preFitFunction->GetParameter(1);
+                double meanError = preFitFunction->GetParError(1);
+                
+                h_time->Fit("gaus", "Q", "", mean - 1.5 * meanError, mean + 1.5 * meanError);
+                h_time->SetTitle(Form("Time Distribution for Energy [%.1f, %.1f] GeV; Time [ns]; Counts", energyMin, energyMax));
+                h_time->Draw();
+                cBin->Update();
+
+                TF1 *fitFunction = h_time->GetFunction("gaus");
+                if (fitFunction) {
+                    double finalMean = fitFunction->GetParameter(1);
+                    double finalMeanError = fitFunction->GetParError(1);
+                    means.push_back(finalMean);
+                    meanErrors.push_back(finalMeanError);
+                    energyMidpoints.push_back(energyMidpoint);
+                }
+            }
+        }
+
+        TCanvas *cMean = new TCanvas(Form("cMean_%d_%d", det, layer), Form("Mean vs. Energy (Det %d, Layer %d)", det, layer), 800, 600);
+        TGraphErrors *graphMean = new TGraphErrors(energyMidpoints.size(), &energyMidpoints[0], &means[0], nullptr, &meanErrors[0]);
+        graphMean->SetTitle(Form("Mean vs. Energy [Det %d, Layer %d]; Energy [GeV]; Fitted Mean [ns]", det, layer));
+        graphMean->SetMarkerStyle(20);
+        graphMean->SetMarkerColor(kBlue);
+        graphMean->Draw("AP");
+        
+        cMean->Update();
+    }
+}
 
