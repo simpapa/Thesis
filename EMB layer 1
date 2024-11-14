@@ -81,12 +81,12 @@ fitCustom->SetParameter(1, 1);
 
 graph->Fit(fitCustom, "R");
 
-double a = fitCustom->GetParameter(0);
-double b = fitCustom->GetParameter(1);
+double p0 = fitCustom->GetParameter(0);
+double p1 = fitCustom->GetParameter(1);
 
 std::cout << "Fit Parameters:" << std::endl;
-std::cout << "a = " << a << " ± " << fitCustom->GetParError(0) << std::endl;
-std::cout << "b = " << b << " ± " << fitCustom->GetParError(1) << std::endl;
+std::cout << "p0 = " << p0 << " ± " << fitCustom->GetParError(0) << std::endl;
+std::cout << "p1 = " << p1 << " ± " << fitCustom->GetParError(1) << std::endl;
 
 // Create a canvas for the final plot and draw
 TCanvas *c1 = new TCanvas("c1", "Resolution vs. Energy", 800, 600);
@@ -98,6 +98,6 @@ fitCustom->Draw("same");
 TLatex lat;
 lat.SetTextSize(0.04);  // Set the font size for the equation
 lat.SetTextAlign(22);   // Align text to the center
-lat.DrawLatexNDC(0.5, 0.5, " #sigma_{t}(E)=#sqrt{ #frac{a^{2}}{E^{2}} + b^{2}}");
+lat.DrawLatexNDC(0.5, 0.5, " #sigma_{t}(E)=#sqrt{ #frac{p0^{2}}{E^{2}} + p1^{2}}");
 
 c1->Update();
