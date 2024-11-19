@@ -15,8 +15,9 @@ chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485090_v1.root");
 chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485950_v1.root");
 chain.Add("/afs/cern.ch/work/n/nikiforo/public/output_485051_v1.root");
 
-const int nBins = 12;
-double energyBins[nBins + 1] = {5, 10, 15, 20, 25, 30, 35, 40, 50, 100, 200, 300, 500};
+// Energy bin edges for variable binning
+const int nBins = 6;
+double energyBinEdges[nBins + 1] = {5, 10, 20, 50, 100, 200, 500}; // Variable bin edges
 
 // Detector and layer information
 const int nDetectors = 4;
@@ -24,9 +25,10 @@ const int layersPerDetector[] = {4, 4, 1, 3};  // EMB=4, EMEC=4, HEC=1 (no layer
 const char* detectorNames[] = {"EMB", "EMEC", "HEC", "FCal"};
 const char* layerNames[] = {"Presampler", "Front", "Middle", "Back"};
 
-std::vector<double> energyMidpoints;
-std::vector<double> resolutions;
-std::vector<double> errors;
+// Store results for final resolution vs. energy plot
+std::vector<double> energyMidpoints[nDetectors][4];
+std::vector<double> resolutions[nDetectors][4];
+std::vector<double> errors[nDetectors][4];
 
 // Set the style for fitting
 gStyle->SetOptFit(1111);
@@ -37,8 +39,8 @@ for (int det = 0; det < nDetectors; ++det) {
 
     for (int layer = 0; layer < maxLayers; ++layer) {
         for (int i = 0; i < nBins; ++i) {
-            double energyMin = energyBins[i];
-            double energyMax = energyBins[i + 1];
+            double energyMin = energyBinEdges[i];
+            double energyMax = energyBinEdges[i + 1];
             double energyMidpoint = 0.5 * (energyMin + energyMax);
 
             TCanvas* cBin = new TCanvas(Form("cBin_det%d_layer%d_bin%d", det, layer, i), "", 800, 600);
@@ -51,10 +53,10 @@ for (int det = 0; det < nDetectors; ++det) {
                 cutCmd = Form("ev_et > %f && ev_et < %f && sc_det == %d && sc_layer == %d", energyMin * 1000 / 12.5, energyMax * 1000 / 12.5, det, layer);
             }
 
-            TString drawCmd = Form("ev_of_ettau/ev_of_et >> h_time_det%d_layer%d_bin%d(200, -25, 25)", det, layer, i);
-            chain.Draw(drawCmd, cutCmd, "goff");
+            TString histName = Form("h_time_det%d_layer%d_bin%d", det, layer, i);
+            chain.Draw(Form("ev_of_ettau/ev_of_et >> %s(200, -25, 25)", histName.Data()), cutCmd, "goff");
 
-            TH1F* h_time = (TH1F*)gDirectory->Get(Form("h_time_det%d_layer%d_bin%d", det, layer, i));
+            TH1F* h_time = (TH1F*)gDirectory->Get(histName);
             if (!h_time) {
                 std::cerr << "Histogram not found for detector " << detectorNames[det] << ", layer " << layer
                           << ", energy range [" << energyMin << ", " << energyMax << "] GeV" << std::endl;
@@ -91,10 +93,11 @@ for (int det = 0; det < nDetectors; ++det) {
                 TF1* fitFunction = h_time->GetFunction("gaus");
                 if (fitFunction) {
                     double finalSigma = fitFunction->GetParameter(2);
-                    resolutions.push_back(finalSigma);
-                    energyMidpoints.push_back(energyMidpoint);
                     double error = fitFunction->GetParError(2);
-                    errors.push_back(error);
+
+                    resolutions[det][layer].push_back(finalSigma);
+                    energyMidpoints[det][layer].push_back(energyMidpoint);
+                    errors[det][layer].push_back(error);
                 }
             }
 
@@ -104,5 +107,54 @@ for (int det = 0; det < nDetectors; ++det) {
     }
 }
 
-// Final resolution vs. energy graph and fit are omitted for brevity but can be added if needed
+// Create a resolution vs. energy graph for each detector and layer
+for (int det = 0; det < nDetectors; ++det) {
+    int maxLayers = layersPerDetector[det];
 
+    for (int layer = 0; layer < maxLayers; ++layer) {
+        TCanvas* cRes = new TCanvas(Form("cRes_det%d_layer%d", det, layer), "", 800, 600);
+        TGraphErrors* graph = new TGraphErrors(
+            energyMidpoints[det][layer].size(),
+            &energyMidpoints[det][layer][0],
+            &resolutions[det][layer][0],
+            nullptr,
+            &errors[det][layer][0]);
+
+        graph->SetTitle("");
+        graph->GetXaxis()->SetTitle("Energy [GeV]");
+        graph->GetYaxis()->SetTitle("Time Resolution [ns]");
+        graph->SetMarkerStyle(20);
+        graph->SetMarkerColor(kBlack);
+
+        // Add a fit to the resolution graph
+        TF1* fitCustom = new TF1("fitCustom", "[0]/x + [1]", energyBinEdges[0], energyBinEdges[nBins]);
+        fitCustom->SetParameters(1, 1);  // Initial guesses
+        graph->Fit(fitCustom, "R");
+
+        // Draw the graph
+        graph->Draw("AP");
+        fitCustom->SetLineColor(kRed);
+        fitCustom->Draw("same");
+
+        // Add equation to the graph
+        TLatex eq;
+        eq.SetTextSize(0.035);
+        eq.SetNDC();
+        eq.SetTextAlign(22);
+        eq.DrawLatex(0.5, 0.85, Form("#sigma_{t}(E) = #frac{%.3f}{E} + %.3f",
+                                     fitCustom->GetParameter(0), fitCustom->GetParameter(1)));
+
+        // Add detector and layer information
+        TLatex info;
+        info.SetTextSize(0.04);
+        info.SetNDC();
+        if (det == 2) {  // HEC: No layer split
+            info.DrawLatex(0.15, 0.9, Form("ATLAS LAr %s", detectorNames[det]));
+        } else {  // Other detectors
+            info.DrawLatex(0.15, 0.9, Form("ATLAS LAr %s %s Layer", detectorNames[det], layerNames[layer]));
+        }
+
+        cRes->Update();
+        cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.png", det, layer));
+    }
+}
