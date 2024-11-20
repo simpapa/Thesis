@@ -82,9 +82,9 @@ for (int det = 0; det < nDetectors; ++det) {
                 info.SetTextSize(0.04);
                 info.SetNDC();
                 if (det == 2) {  // HEC: No layer split
-                    info.DrawLatex(0.15, 0.85, Form("ATLAS LAr %s", detectorNames[det]));
+                    info.DrawLatex(0.5, 0.9, Form("%s", detectorNames[det]));
                 } else {  // Other detectors
-                    info.DrawLatex(0.15, 0.85, Form("ATLAS LAr %s %s Layer", detectorNames[det], layerNames[layer]));
+                    info.DrawLatex(0.5, 0.9, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
                 }
 
                 h_time->Draw();
@@ -102,7 +102,9 @@ for (int det = 0; det < nDetectors; ++det) {
             }
 
             // Save the canvas to LXPLUS
+            cBin->SaveAs(Form("/afs/cern.ch/user/s/scranepa/det%d_layer%d_bin%d.pdf", det, layer, i));
             cBin->SaveAs(Form("/afs/cern.ch/user/s/scranepa/det%d_layer%d_bin%d.png", det, layer, i));
+            cBin->SaveAs(Form("/afs/cern.ch/user/s/scranepa/det%d_layer%d_bin%d.C", det, layer, i));
         }
     }
 }
@@ -127,7 +129,7 @@ for (int det = 0; det < nDetectors; ++det) {
         graph->SetMarkerColor(kBlack);
 
         // Add a fit to the resolution graph
-        TF1* fitCustom = new TF1("fitCustom", "[0]/x + [1]", energyBinEdges[0], energyBinEdges[nBins]);
+        TF1* fitCustom = new TF1("fitCustom", "sqrt(([0]/x)**2 + [1]**2)", energyBinEdges[0], energyBinEdges[nBins]);
         fitCustom->SetParameters(1, 1);  // Initial guesses
         graph->Fit(fitCustom, "R");
 
@@ -137,24 +139,30 @@ for (int det = 0; det < nDetectors; ++det) {
         fitCustom->Draw("same");
 
         // Add equation to the graph
+        double p0 = fitCustom->GetParameter(0);
+        double p1 = fitCustom->GetParameter(1);
         TLatex eq;
         eq.SetTextSize(0.035);
         eq.SetNDC();
-        eq.SetTextAlign(22);
-        eq.DrawLatex(0.5, 0.85, Form("#sigma_{t}(E) = #frac{%.3f}{E} + %.3f",
-                                     fitCustom->GetParameter(0), fitCustom->GetParameter(1)));
+        eq.SetTextAlign(22);  // Center alignment
+        eq.DrawLatex(0.5, 0.85, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
 
-        // Add detector and layer information
+        // Add detector and layer information in the title
         TLatex info;
         info.SetTextSize(0.04);
         info.SetNDC();
+        info.SetTextAlign(22);  // Center alignment
         if (det == 2) {  // HEC: No layer split
-            info.DrawLatex(0.15, 0.9, Form("ATLAS LAr %s", detectorNames[det]));
+            info.DrawLatex(0.5, 0.92, Form("%s", detectorNames[det]));
         } else {  // Other detectors
-            info.DrawLatex(0.15, 0.9, Form("ATLAS LAr %s %s Layer", detectorNames[det], layerNames[layer]));
+            info.DrawLatex(0.5, 0.92, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
         }
 
         cRes->Update();
+
+        // Save the canvas to LXPLUS
+        cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.pdf", det, layer));
         cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.png", det, layer));
+        cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.C", det, layer));
     }
 }
