@@ -82,9 +82,9 @@ for (int det = 0; det < nDetectors; ++det) {
                 info.SetTextSize(0.04);
                 info.SetNDC();
                 if (det == 2) {  // HEC: No layer split
-                    info.DrawLatex(0.5, 0.9, Form("%s", detectorNames[det]));
+                    info.DrawLatex(0.5, 0.85, Form("%s", detectorNames[det]));
                 } else {  // Other detectors
-                    info.DrawLatex(0.5, 0.9, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
+                    info.DrawLatex(0.5, 0.85, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
                 }
 
                 h_time->Draw();
@@ -145,17 +145,17 @@ for (int det = 0; det < nDetectors; ++det) {
         eq.SetTextSize(0.035);
         eq.SetNDC();
         eq.SetTextAlign(22);  // Center alignment
-        eq.DrawLatex(0.5, 0.85, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
+        eq.DrawLatex(0.5, 0.75, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
 
-        // Add detector and layer information in the title
+        // Add detector and layer information
         TLatex info;
         info.SetTextSize(0.04);
         info.SetNDC();
         info.SetTextAlign(22);  // Center alignment
         if (det == 2) {  // HEC: No layer split
-            info.DrawLatex(0.5, 0.92, Form("%s", detectorNames[det]));
+            info.DrawLatex(0.5, 0.90, Form("%s", detectorNames[det]));
         } else {  // Other detectors
-            info.DrawLatex(0.5, 0.92, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
+            info.DrawLatex(0.5, 0.90, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
         }
 
         cRes->Update();
