@@ -73,18 +73,19 @@ for (int det = 0; det < nDetectors; ++det) {
 
                 // Perform a more focused fit around the mean ± sigma
                 h_time->Fit("gaus", "Q", "", mean - sigma, mean + sigma);
-                h_time->SetTitle("");
+                h_time->SetTitle("");  // No main title on the histogram
                 h_time->GetXaxis()->SetTitle("Time [ns]");
                 h_time->GetYaxis()->SetTitle("Counts");
 
-                // Add detector and layer information
+                // Add detector and layer information (title above stat box)
                 TLatex info;
                 info.SetTextSize(0.04);
                 info.SetNDC();
+                info.SetTextAlign(22);  // Center alignment
                 if (det == 2) {  // HEC: No layer split
-                    info.DrawLatex(0.5, 0.85, Form("%s", detectorNames[det]));
+                    info.DrawLatex(0.5, 0.92, Form("%s", detectorNames[det]));
                 } else {  // Other detectors
-                    info.DrawLatex(0.5, 0.85, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
+                    info.DrawLatex(0.5, 0.92, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
                 }
 
                 h_time->Draw();
@@ -138,24 +139,24 @@ for (int det = 0; det < nDetectors; ++det) {
         fitCustom->SetLineColor(kRed);
         fitCustom->Draw("same");
 
-        // Add equation to the graph
+        // Add equation to the graph (move equation below stat box)
         double p0 = fitCustom->GetParameter(0);
         double p1 = fitCustom->GetParameter(1);
         TLatex eq;
         eq.SetTextSize(0.035);
         eq.SetNDC();
         eq.SetTextAlign(22);  // Center alignment
-        eq.DrawLatex(0.5, 0.75, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
+        eq.DrawLatex(0.5, 0.15, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
 
-        // Add detector and layer information
+        // Add detector and layer information (title above stat box)
         TLatex info;
         info.SetTextSize(0.04);
         info.SetNDC();
         info.SetTextAlign(22);  // Center alignment
         if (det == 2) {  // HEC: No layer split
-            info.DrawLatex(0.5, 0.90, Form("%s", detectorNames[det]));
+            info.DrawLatex(0.5, 0.92, Form("%s", detectorNames[det]));
         } else {  // Other detectors
-            info.DrawLatex(0.5, 0.90, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
+            info.DrawLatex(0.5, 0.92, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
         }
 
         cRes->Update();
@@ -163,6 +164,4 @@ for (int det = 0; det < nDetectors; ++det) {
         // Save the canvas to LXPLUS
         cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.pdf", det, layer));
         cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.png", det, layer));
-        cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.C", det, layer));
-    }
-}
+        cRes->SaveAs(Form("/afs/cern.ch/user/s/s
