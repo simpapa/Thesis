@@ -134,29 +134,35 @@ for (int det = 0; det < nDetectors; ++det) {
         fitCustom->SetParameters(1, 1);  // Initial guesses
         graph->Fit(fitCustom, "R");
 
+        // Adjust stat box position
+        gStyle->SetStatX(0.88);  // Move stat box to the right
+        gStyle->SetStatY(0.88);  // Move stat box to the top-right
+        gStyle->SetStatW(0.2);   // Stat box width
+        gStyle->SetStatH(0.1);   // Stat box height
+
         // Draw the graph
         graph->Draw("AP");
         fitCustom->SetLineColor(kRed);
         fitCustom->Draw("same");
 
-        // Add equation to the graph (move equation below stat box)
+        // Add equation to the graph (position it below the stat box)
         double p0 = fitCustom->GetParameter(0);
         double p1 = fitCustom->GetParameter(1);
         TLatex eq;
         eq.SetTextSize(0.035);
         eq.SetNDC();
         eq.SetTextAlign(22);  // Center alignment
-        eq.DrawLatex(0.5, 0.15, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
+        eq.DrawLatex(0.5, 0.2, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
 
-        // Add detector and layer information (title above stat box)
+        // Add detector and layer information (place title at the top)
         TLatex info;
         info.SetTextSize(0.04);
         info.SetNDC();
         info.SetTextAlign(22);  // Center alignment
         if (det == 2) {  // HEC: No layer split
-            info.DrawLatex(0.5, 0.92, Form("%s", detectorNames[det]));
+            info.DrawLatex(0.5, 0.93, Form("%s", detectorNames[det]));
         } else {  // Other detectors
-            info.DrawLatex(0.5, 0.92, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
+            info.DrawLatex(0.5, 0.93, Form("%s %s Layer", detectorNames[det], layerNames[layer]));
         }
 
         cRes->Update();
@@ -164,4 +170,6 @@ for (int det = 0; det < nDetectors; ++det) {
         // Save the canvas to LXPLUS
         cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.pdf", det, layer));
         cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.png", det, layer));
-        cRes->SaveAs(Form("/afs/cern.ch/user/s/s
+        cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.C", det, layer));
+    }
+}
