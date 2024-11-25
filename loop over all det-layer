@@ -145,14 +145,14 @@ for (int det = 0; det < nDetectors; ++det) {
         fitCustom->SetLineColor(kRed);
         fitCustom->Draw("same");
 
-        // Add equation to the graph (position it below the stat box)
+        // Add equation to the graph (position it higher to avoid overlap)
         double p0 = fitCustom->GetParameter(0);
         double p1 = fitCustom->GetParameter(1);
         TLatex eq;
         eq.SetTextSize(0.035);
         eq.SetNDC();
         eq.SetTextAlign(22);  // Center alignment
-        eq.DrawLatex(0.5, 0.2, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
+        eq.DrawLatex(0.5, 0.75, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.3f}{E_{sc}})^{2} + %.3f^{2}}", p0, p1));
 
         // Add detector and layer information (place title at the top)
         TLatex info;
