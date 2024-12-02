@@ -25,18 +25,14 @@ const int layersPerDetector[] = {4, 4, 1, 3};  // EMB=4, EMEC=4, HEC=1 (no layer
 const char* detectorNames[] = {"EMB", "EMEC", "HEC", "FCal"};
 const char* layerNames[] = {"Presampler", "Front", "Middle", "Back"};
 
-// Specific layers for y-axis zoom
-std::set<std::pair<int, int>> zoomLayers = {{0, 0}, {0, 1}, {0, 3}, {1, 3}}; // EMB Presampler, Front, Back, EMEC Back
-
 // Store results for final resolution vs. energy plot
 std::vector<double> energyMidpoints[nDetectors][4];
 std::vector<double> resolutions[nDetectors][4];
 std::vector<double> errors[nDetectors][4];
-std::vector<double> energyErrors[nDetectors][4]; // x-axis error bars
 
 // Set the style for fitting
 gStyle->SetOptFit(1111);
-gStyle->SetStatFormat("6.1f");  // Reduce precision in the stat box
+gStyle->SetStatFormat("6.1f");  // Reduce stat box precision to 1 decimal point
 
 for (int det = 0; det < nDetectors; ++det) {
     int maxLayers = layersPerDetector[det];
@@ -46,7 +42,6 @@ for (int det = 0; det < nDetectors; ++det) {
             double energyMin = energyBinEdges[i];
             double energyMax = energyBinEdges[i + 1];
             double energyMidpoint = 0.5 * (energyMin + energyMax);
-            double energyError = (energyMax - energyMin) / 2.0;
 
             TCanvas* cBin = new TCanvas(Form("cBin_det%d_layer%d_bin%d", det, layer, i), "", 800, 600);
 
@@ -104,7 +99,6 @@ for (int det = 0; det < nDetectors; ++det) {
                     resolutions[det][layer].push_back(finalSigma);
                     energyMidpoints[det][layer].push_back(energyMidpoint);
                     errors[det][layer].push_back(error);
-                    energyErrors[det][layer].push_back(energyError);
                 }
             }
 
@@ -126,24 +120,23 @@ for (int det = 0; det < nDetectors; ++det) {
             energyMidpoints[det][layer].size(),
             &energyMidpoints[det][layer][0],
             &resolutions[det][layer][0],
-            &energyErrors[det][layer][0],
+            nullptr,
             &errors[det][layer][0]);
 
-        graph->SetTitle(Form("Time Resolution vs. Energy for %s %s", 
-                             detectorNames[det], 
-                             (det == 2 ? "" : layerNames[layer])));
+        // Title for HEC includes "Layer 0"
+        if (det == 2) {
+            graph->SetTitle("Time Resolution vs Energy for HEC Layer 0");
+        } else {
+            graph->SetTitle(Form("Time Resolution vs Energy for %s %s", detectorNames[det], layerNames[layer]));
+        }
+
         graph->GetXaxis()->SetTitle("Energy [GeV]");
         graph->GetYaxis()->SetTitle("Time Resolution [ns]");
         graph->SetMarkerStyle(20);
         graph->SetMarkerColor(kBlack);
 
-        // Zoom in y-axis for specific layers
-        if (zoomLayers.find({det, layer}) != zoomLayers.end()) {
-            graph->GetYaxis()->SetRangeUser(0, 5); // Example zoom range
-        }
-
         // Add a fit to the resolution graph
-        TF1* fitCustom = new TF1("fitCustom", "sqrt(([0]/x)**2 + [1]**2)", 50, 500);  // Adjusted fit range
+        TF1* fitCustom = new TF1("fitCustom", "sqrt(([0]/x)**2 + [1]**2)", energyBinEdges[0], energyBinEdges[nBins]);
         fitCustom->SetParameters(1, 1);  // Initial guesses
         graph->Fit(fitCustom, "R");
 
@@ -159,13 +152,11 @@ for (int det = 0; det < nDetectors; ++det) {
         fitCustom->Draw("same");
 
         // Add equation to the graph (positioned below the stat box)
-        double p0 = fitCustom->GetParameter(0);
-        double p1 = fitCustom->GetParameter(1);
         TLatex eq;
         eq.SetTextSize(0.035);
         eq.SetNDC();
         eq.SetTextAlign(22);  // Center alignment
-        eq.DrawLatex(0.5, 0.65, Form("#sigma_{t}(E_{sc}) = #sqrt{(#frac{%.1f}{E_{sc}})^{2} + %.1f^{2}}", p0, p1));
+        eq.DrawLatex(0.5, 0.65, "#sigma_{t}(E_{sc}) = #sqrt{(#frac{p0}{E_{sc}})^{2} + p1^{2}}");
 
         // Save the resolution plot
         cRes->SaveAs(Form("/afs/cern.ch/user/s/scranepa/resolution_det%d_layer%d.pdf", det, layer));
